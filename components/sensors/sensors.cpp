@@ -11,7 +11,7 @@ namespace sensors {
 
 esp_err_t init()
 {
-    ESP_LOGI(TAG, "module ready");
+    ESP_LOGD(TAG, "module ready");
     return ESP_OK;
 }
 

@@ -61,11 +61,11 @@ esp_err_t execute_blocking_move(
     }
 
     if (max_steps == 0) {
-        ESP_LOGI(TAG, "no stepper movement required");
+        ESP_LOGD(TAG, "no stepper movement required");
         return ESP_OK;
     }
 
-    ESP_LOGI(TAG, "starting coordinated move, max_steps=%u", static_cast<unsigned>(max_steps));
+    ESP_LOGD(TAG, "starting coordinated move, max_steps=%u", static_cast<unsigned>(max_steps));
 
     for (uint32_t step_index = 0; step_index < max_steps; ++step_index) {
         if (robo_6dof::robot_state::is_estop() ||
@@ -92,7 +92,7 @@ esp_err_t execute_blocking_move(
         esp_rom_delay_us(kStepIntervalUs);
     }
 
-    ESP_LOGI(TAG, "coordinated move complete");
+    ESP_LOGD(TAG, "coordinated move complete");
     return ESP_OK;
 }
 } // namespace
@@ -102,7 +102,7 @@ namespace motion_control {
 
 esp_err_t init()
 {
-    ESP_LOGI(TAG, "module ready");
+    ESP_LOGD(TAG, "module ready");
     return ESP_OK;
 }
 

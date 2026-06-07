@@ -14,6 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "gripper_servo.hpp"
 #include "motion_control.hpp"
 #include "robot_state.hpp"
 
@@ -235,8 +236,8 @@ void handle_start(std::size_t token_count)
     }
 
     if (robo_6dof::robot_state::start() == ESP_OK) {
-        set_pos_stream_enabled(true);
         write_line("OK_START");
+        set_pos_stream_enabled(true);
     } else {
         write_line("ERR_FAULT");
     }
@@ -287,8 +288,8 @@ void handle_pos_on(std::size_t token_count)
         return;
     }
 
-    set_pos_stream_enabled(true);
     write_line("OK_POS_ON");
+    set_pos_stream_enabled(true);
 }
 
 void handle_pos_off(std::size_t token_count)
@@ -364,7 +365,13 @@ void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
         return;
     }
 
-    const esp_err_t grip_err = robo_6dof::robot_state::set_gripper_percent(gripper_percent);
+    esp_err_t grip_err = robo_6dof::gripper_servo::set_percent(gripper_percent);
+    if (grip_err != ESP_OK) {
+        write_line("ERR_FAULT");
+        return;
+    }
+
+    grip_err = robo_6dof::robot_state::set_gripper_percent(gripper_percent);
     if (grip_err == ESP_ERR_INVALID_STATE) {
         write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
         return;
@@ -394,7 +401,13 @@ void handle_gripper(const std::array<char*, kMaxTokens>& tokens, std::size_t tok
         return;
     }
 
-    const esp_err_t err = robo_6dof::robot_state::set_gripper_percent(gripper_percent);
+    esp_err_t err = robo_6dof::gripper_servo::set_percent(gripper_percent);
+    if (err != ESP_OK) {
+        write_line("ERR_FAULT");
+        return;
+    }
+
+    err = robo_6dof::robot_state::set_gripper_percent(gripper_percent);
     if (err == ESP_ERR_INVALID_STATE) {
         write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
         return;
@@ -529,7 +542,7 @@ esp_err_t init()
     }
 
     set_pos_stream_enabled(false);
-    ESP_LOGI(TAG, "module ready on default console UART");
+    ESP_LOGD(TAG, "module ready on default console UART");
     return ESP_OK;
 }
 
@@ -564,7 +577,7 @@ esp_err_t start()
     }
 
     g_started = true;
-    ESP_LOGI(TAG, "serial RX and POS streaming tasks started");
+    ESP_LOGD(TAG, "serial RX and POS streaming tasks started");
     return ESP_OK;
 }
 

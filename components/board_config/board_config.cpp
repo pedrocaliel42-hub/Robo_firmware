@@ -183,7 +183,7 @@ bool validate_home_positions()
 
 void log_loaded_config()
 {
-    ESP_LOGI(TAG,
+    ESP_LOGD(TAG,
              "pins: START=GPIO%d STOP/ESTOP=GPIO%d FIM_DE_CURSO=GPIO%d SERVO_GARRA=GPIO%d",
              static_cast<int>(kHardwarePins.start_button_gpio),
              static_cast<int>(kHardwarePins.stop_estop_button_gpio),
@@ -192,7 +192,7 @@ void log_loaded_config()
 
     for (std::size_t axis = 0; axis < robo_6dof::board_config::kJointCount; ++axis) {
         const auto& joint = kJointConfigs[axis];
-        ESP_LOGI(TAG,
+        ESP_LOGD(TAG,
                  "q%u %s: STEP=GPIO%d DIR=GPIO%d home=%.1f min=%.1f max=%.1f "
                  "steps/rev=%d microstep=%d gear=%.2f invert=%s max_speed=%.1f max_accel=%.1f",
                  static_cast<unsigned>(axis + 1),
@@ -232,7 +232,7 @@ esp_err_t init()
     }
 
     log_loaded_config();
-    ESP_LOGI(TAG, "module ready");
+    ESP_LOGD(TAG, "module ready");
     return ESP_OK;
 }
 

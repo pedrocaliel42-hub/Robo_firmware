@@ -97,7 +97,7 @@ void transition_unlocked(robo_6dof::robot_state::RobotMode next)
         return;
     }
 
-    ESP_LOGI(TAG, "state %s -> %s", mode_name_unlocked(g_state.mode), mode_name_unlocked(next));
+    ESP_LOGD(TAG, "state %s -> %s", mode_name_unlocked(g_state.mode), mode_name_unlocked(next));
     g_state.mode = next;
 }
 
@@ -138,7 +138,7 @@ void safety_input_task(void*)
     limit_input.changed_at = xTaskGetTickCount();
 
     bool last_limit_active = limit_input.stable_level == kInputActiveLevel;
-    ESP_LOGI(TAG, "safety input task ready");
+    ESP_LOGD(TAG, "safety input task ready");
 
     while (true) {
         const TickType_t now = xTaskGetTickCount();
@@ -204,7 +204,7 @@ esp_err_t init()
         g_safety_task_started = true;
     }
 
-    ESP_LOGI(TAG, "module ready with manual-home estimated position");
+    ESP_LOGD(TAG, "module ready with manual-home estimated position");
     return ESP_OK;
 }
 

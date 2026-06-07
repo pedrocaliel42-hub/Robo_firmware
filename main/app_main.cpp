@@ -25,7 +25,7 @@ extern "C" void app_main(void)
 {
     configure_default_console();
 
-    ESP_LOGI(TAG, "Starting ROBO_6DOF ESP-IDF firmware foundation");
+    ESP_LOGD(TAG, "Starting ROBO_6DOF ESP-IDF firmware foundation");
 
     ESP_ERROR_CHECK(robo_6dof::board_config::init());
     ESP_ERROR_CHECK(robo_6dof::robot_state::init());
@@ -38,5 +38,5 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(robo_6dof::serial_protocol::send_boot_message());
     ESP_ERROR_CHECK(robo_6dof::serial_protocol::start());
 
-    ESP_LOGI(TAG, "Firmware initialization complete");
+    ESP_LOGD(TAG, "Firmware initialization complete");
 }

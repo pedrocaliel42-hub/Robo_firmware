@@ -34,7 +34,7 @@ esp_err_t init()
         gpio_set_level(joint->dir_gpio, 0);
     }
 
-    ESP_LOGI(TAG, "module ready with STEP/DIR outputs idle low");
+    ESP_LOGD(TAG, "module ready with STEP/DIR outputs idle low");
     return ESP_OK;
 }
 
