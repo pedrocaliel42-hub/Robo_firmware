@@ -1,8 +1,0 @@
-Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=H:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe -DESP_PLATFORM=1 -DIDF_TARGET=esp32 -DCCACHE_ENABLE=0 C:\Users\pedro\Robo_firmware\firmware\robo_6dof_espidf
--- Found Git: C:/Program Files/Git/cmd/git.exe (found version "2.53.0.windows.1")
--- Minimal build - OFF
--- The C compiler identification is unknown
--- The CXX compiler identification is unknown
--- The ASM compiler identification is unknown
--- Found assembler: xtensa-esp32-elf-gcc
--- Configuring incomplete, errors occurred!

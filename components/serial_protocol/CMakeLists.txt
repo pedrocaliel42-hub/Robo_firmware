@@ -1,0 +1,5 @@
+idf_component_register(
+    SRCS "serial_protocol.cpp"
+    INCLUDE_DIRS "include"
+    REQUIRES board_config esp_common freertos log robot_state
+)

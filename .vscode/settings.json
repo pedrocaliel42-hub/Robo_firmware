@@ -4,7 +4,7 @@
   "idf.openOcdConfigs": [
     "board/esp32-wrover-kit-3.3v.cfg"
   ],
-  "idf.portWin": "detect",
+  "idf.portWin": "COM8",
   "idf.currentSetup": "H:/Espressif/frameworks/esp-idf-v5.5.4/",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32"
@@ -14,5 +14,6 @@
     "--background-index",
     "--query-driver=**",
     "--compile-commands-dir=c:\\Users\\pedro\\Robo_firmware\\build"
-  ]
+  ],
+  "idf.flashType": "UART"
 }

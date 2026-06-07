@@ -1,9 +1,0 @@
-
-
-# Load bootloader symbols
-set confirm off
-    # Bootloader elf was not found
-set confirm on
-
-# Load application symbols
-file C:/Users/pedro/Robo_firmware/firmware/robo_6dof_espidf/build_phase2_manualpath/bootloader/bootloader.elf
