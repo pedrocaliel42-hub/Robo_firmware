@@ -14,6 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "motion_control.hpp"
 #include "robot_state.hpp"
 
 namespace {
@@ -208,7 +209,7 @@ bool reject_if_not_ready_for_motion()
         return true;
     }
 
-    if (!robo_6dof::robot_state::is_armed()) {
+    if (!robo_6dof::robot_state::can_accept_motion()) {
         write_line("ERR_NOT_ARMED");
         return true;
     }
@@ -228,12 +229,16 @@ void handle_start(std::size_t token_count)
         return;
     }
 
-    const esp_err_t err = robo_6dof::robot_state::start();
-    if (err == ESP_OK) {
+    if (robo_6dof::robot_state::is_estop()) {
+        write_line("ERR_ESTOP");
+        return;
+    }
+
+    if (robo_6dof::robot_state::start() == ESP_OK) {
         set_pos_stream_enabled(true);
         write_line("OK_START");
     } else {
-        write_line("ERR_ESTOP");
+        write_line("ERR_FAULT");
     }
 }
 
@@ -244,7 +249,11 @@ void handle_stop(std::size_t token_count)
         return;
     }
 
-    robo_6dof::robot_state::stop();
+    if (robo_6dof::robot_state::stop() != ESP_OK) {
+        write_line("ERR_ESTOP");
+        return;
+    }
+
     set_pos_stream_enabled(false);
     write_line("OK_STOP");
 }
@@ -304,12 +313,16 @@ void handle_home(std::size_t token_count)
         return;
     }
 
-    if (robo_6dof::robot_state::set_home_position() != ESP_OK) {
+    const esp_err_t err = robo_6dof::motion_control::move_home();
+    if (err == ESP_ERR_INVALID_ARG) {
+        write_line("ERR_LIMIT");
+    } else if (err == ESP_ERR_INVALID_STATE) {
+        write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
+    } else if (err == ESP_OK) {
+        write_line("OK_MOVE_DONE");
+    } else {
         write_line("ERR_FAULT");
-        return;
     }
-
-    write_line("OK_MOVE_DONE");
 }
 
 void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_count)
@@ -337,12 +350,26 @@ void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
         return;
     }
 
-    if (robo_6dof::robot_state::set_joint_targets_deg(targets) != ESP_OK) {
+    const esp_err_t move_err = robo_6dof::motion_control::move_to_targets_deg(targets);
+    if (move_err == ESP_ERR_INVALID_ARG) {
         write_line("ERR_LIMIT");
         return;
     }
+    if (move_err == ESP_ERR_INVALID_STATE) {
+        write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
+        return;
+    }
+    if (move_err != ESP_OK) {
+        write_line("ERR_FAULT");
+        return;
+    }
 
-    if (robo_6dof::robot_state::set_gripper_percent(gripper_percent) != ESP_OK) {
+    const esp_err_t grip_err = robo_6dof::robot_state::set_gripper_percent(gripper_percent);
+    if (grip_err == ESP_ERR_INVALID_STATE) {
+        write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
+        return;
+    }
+    if (grip_err != ESP_OK) {
         write_line("ERR_FAULT");
         return;
     }
@@ -367,7 +394,12 @@ void handle_gripper(const std::array<char*, kMaxTokens>& tokens, std::size_t tok
         return;
     }
 
-    if (robo_6dof::robot_state::set_gripper_percent(gripper_percent) != ESP_OK) {
+    const esp_err_t err = robo_6dof::robot_state::set_gripper_percent(gripper_percent);
+    if (err == ESP_ERR_INVALID_STATE) {
+        write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
+        return;
+    }
+    if (err != ESP_OK) {
         write_line("ERR_FAULT");
         return;
     }
@@ -421,15 +453,45 @@ void handle_line(char* line)
 void serial_rx_task(void*)
 {
     char line[kLineBufferLength] = {};
+    std::size_t line_length = 0;
 
     while (true) {
-        if (std::fgets(line, sizeof(line), stdin) == nullptr) {
+        const int ch = std::getchar();
+        if (ch == EOF) {
             clearerr(stdin);
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
 
-        handle_line(line);
+        if (ch == '\r' || ch == '\n') {
+            if (line_length == 0) {
+                continue;
+            }
+
+            line[line_length] = '\0';
+            handle_line(line);
+            line_length = 0;
+            continue;
+        }
+
+        if (ch == '\b' || ch == 0x7F) {
+            if (line_length > 0) {
+                --line_length;
+            }
+            continue;
+        }
+
+        if (!std::isprint(static_cast<unsigned char>(ch))) {
+            continue;
+        }
+
+        if (line_length >= sizeof(line) - 1) {
+            line_length = 0;
+            write_line("ERR_BAD_FORMAT");
+            continue;
+        }
+
+        line[line_length++] = static_cast<char>(ch);
     }
 }
 
