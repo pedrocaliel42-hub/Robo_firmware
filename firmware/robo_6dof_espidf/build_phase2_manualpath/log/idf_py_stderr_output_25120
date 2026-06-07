@@ -1,0 +1,16 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=H:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe -DESP_PLATFORM=1 -DIDF_TARGET=esp32 -DCCACHE_ENABLE=0 C:\Users\pedro\Robo_firmware\firmware\robo_6dof_espidf
+Traceback (most recent call last):
+  File "H:/Espressif/frameworks/esp-idf-v5.5.4/components/esp_rom/gen_gdbinit.py", line 72, in <module>
+    gdbinit_lines = generate_gdbinit_rom_add_symbols(target)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "H:/Espressif/frameworks/esp-idf-v5.5.4/components/esp_rom/gen_gdbinit.py", line 32, in generate_gdbinit_rom_add_symbols
+    raise EnvironmentError(
+OSError: ESP_ROM_ELF_DIR environment variable is not defined. Please try to run IDF "install" and "export" scripts.
+CMake Warning at H:/Espressif/frameworks/esp-idf-v5.5.4/tools/cmake/gdbinit.cmake:52 (message):
+  Error while generating esp_rom gdbinit
+Call Stack (most recent call first):
+  H:/Espressif/frameworks/esp-idf-v5.5.4/tools/cmake/project.cmake:356 (__generate_gdbinit)
+  H:/Espressif/frameworks/esp-idf-v5.5.4/tools/cmake/project.cmake:979 (__project_info)
+  CMakeLists.txt:6 (project)
+
+
