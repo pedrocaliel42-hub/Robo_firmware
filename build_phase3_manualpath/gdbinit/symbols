@@ -1,0 +1,9 @@
+
+
+# Load bootloader symbols
+set confirm off
+    add-symbol-file C:/Users/pedro/Robo_firmware/build_phase3_manualpath/bootloader/bootloader.elf
+set confirm on
+
+# Load application symbols
+file C:/Users/pedro/Robo_firmware/build_phase3_manualpath/robo_6dof_espidf.elf

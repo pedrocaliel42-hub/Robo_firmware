@@ -2,6 +2,7 @@
 
 #include "board_config.hpp"
 #include "gripper_servo.hpp"
+#include "mega_bridge.hpp"
 #include "motion_control.hpp"
 #include "robot_state.hpp"
 #include "sensors.hpp"
@@ -32,6 +33,7 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(robo_6dof::sensors::init());
     ESP_ERROR_CHECK(robo_6dof::stepper_a4988::init());
     ESP_ERROR_CHECK(robo_6dof::gripper_servo::init());
+    ESP_ERROR_CHECK(robo_6dof::mega_bridge::init());
     ESP_ERROR_CHECK(robo_6dof::motion_control::init());
     ESP_ERROR_CHECK(robo_6dof::serial_protocol::init());
 

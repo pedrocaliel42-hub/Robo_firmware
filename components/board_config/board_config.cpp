@@ -8,80 +8,103 @@
 namespace {
 constexpr char TAG[] = "board_config";
 
+// Ajuste aqui as reducoes mecanicas de cada junta.
+// Exemplo: motor com reducao 10:1 usa 10.0F.
+#ifndef ROBO_Q1_GEAR_RATIO
+#define ROBO_Q1_GEAR_RATIO 1.0F
+#endif
+#ifndef ROBO_Q2_GEAR_RATIO
+#define ROBO_Q2_GEAR_RATIO 1.0F
+#endif
+#ifndef ROBO_Q3_GEAR_RATIO
+#define ROBO_Q3_GEAR_RATIO 1.0F
+#endif
+#ifndef ROBO_Q4_GEAR_RATIO
+#define ROBO_Q4_GEAR_RATIO 1.0F
+#endif
+#ifndef ROBO_Q5_GEAR_RATIO
+#define ROBO_Q5_GEAR_RATIO 1.0F
+#endif
+#ifndef ROBO_Q6_GEAR_RATIO
+#define ROBO_Q6_GEAR_RATIO 1.0F
+#endif
+
 constexpr robo_6dof::board_config::HardwarePins kHardwarePins = {
     GPIO_NUM_34,
     GPIO_NUM_35,
     GPIO_NUM_2,
     GPIO_NUM_4,
+    GPIO_NUM_16,
+    GPIO_NUM_17,
 };
 
 constexpr robo_6dof::board_config::JointConfig kJointConfigs[] = {
     {
         "Base",
-        GPIO_NUM_13,
-        GPIO_NUM_14,
+        GPIO_NUM_NC,
+        GPIO_NUM_NC,
         -180.0F,
         180.0F,
         0.0F,
         200,
         16,
-        1.0F,
+        ROBO_Q1_GEAR_RATIO,
         false,
         30.0F,
         60.0F,
     },
     {
         "Ombro",
-        GPIO_NUM_16,
-        GPIO_NUM_17,
+        GPIO_NUM_NC,
+        GPIO_NUM_NC,
         -90.0F,
         90.0F,
         0.0F,
         200,
         16,
-        1.0F,
+        ROBO_Q2_GEAR_RATIO,
         false,
         30.0F,
         60.0F,
     },
     {
         "Cotovelo",
-        GPIO_NUM_18,
-        GPIO_NUM_19,
+        GPIO_NUM_NC,
+        GPIO_NUM_NC,
         -180.0F,
         180.0F,
         90.0F,
         200,
         16,
-        1.0F,
+        ROBO_Q3_GEAR_RATIO,
         false,
         30.0F,
         60.0F,
     },
     {
         "Punho 1",
-        GPIO_NUM_23,
-        GPIO_NUM_25,
+        GPIO_NUM_NC,
+        GPIO_NUM_NC,
         -180.0F,
         180.0F,
         0.0F,
         200,
         16,
-        1.0F,
+        ROBO_Q4_GEAR_RATIO,
         false,
         30.0F,
         60.0F,
     },
     {
         "Punho 2",
-        GPIO_NUM_26,
-        GPIO_NUM_27,
+        GPIO_NUM_NC,
+        GPIO_NUM_NC,
         -180.0F,
         180.0F,
         0.0F,
         200,
         16,
-        1.0F,
+        ROBO_Q5_GEAR_RATIO,
         false,
         30.0F,
         60.0F,
@@ -95,7 +118,7 @@ constexpr robo_6dof::board_config::JointConfig kJointConfigs[] = {
         0.0F,
         200,
         16,
-        1.0F,
+        ROBO_Q6_GEAR_RATIO,
         false,
         30.0F,
         60.0F,
@@ -115,7 +138,12 @@ esp_err_t configure_outputs()
 {
     uint64_t output_mask = gpio_bit(kHardwarePins.gripper_servo_gpio);
 
-    for (const auto& joint : kJointConfigs) {
+    for (std::size_t axis = 0; axis < robo_6dof::board_config::kJointCount; ++axis) {
+        if (!robo_6dof::board_config::is_local_stepper_axis(axis)) {
+            continue;
+        }
+
+        const auto& joint = kJointConfigs[axis];
         output_mask |= gpio_bit(joint.step_gpio);
         output_mask |= gpio_bit(joint.dir_gpio);
     }
@@ -133,7 +161,12 @@ esp_err_t configure_outputs()
         return err;
     }
 
-    for (const auto& joint : kJointConfigs) {
+    for (std::size_t axis = 0; axis < robo_6dof::board_config::kJointCount; ++axis) {
+        if (!robo_6dof::board_config::is_local_stepper_axis(axis)) {
+            continue;
+        }
+
+        const auto& joint = kJointConfigs[axis];
         gpio_set_level(joint.step_gpio, 0);
         gpio_set_level(joint.dir_gpio, 0);
     }
@@ -184,19 +217,24 @@ bool validate_home_positions()
 void log_loaded_config()
 {
     ESP_LOGD(TAG,
-             "pins: START=GPIO%d STOP/ESTOP=GPIO%d FIM_DE_CURSO=GPIO%d SERVO_GARRA=GPIO%d",
+             "pins: START=GPIO%d STOP/ESTOP=GPIO%d FIM_DE_CURSO=GPIO%d SERVO_GARRA=GPIO%d "
+             "MEGA_UART_RX=GPIO%d MEGA_UART_TX=GPIO%d",
              static_cast<int>(kHardwarePins.start_button_gpio),
              static_cast<int>(kHardwarePins.stop_estop_button_gpio),
              static_cast<int>(kHardwarePins.limit_switch_gpio),
-             static_cast<int>(kHardwarePins.gripper_servo_gpio));
+             static_cast<int>(kHardwarePins.gripper_servo_gpio),
+             static_cast<int>(kHardwarePins.mega_uart_rx_gpio),
+             static_cast<int>(kHardwarePins.mega_uart_tx_gpio));
 
     for (std::size_t axis = 0; axis < robo_6dof::board_config::kJointCount; ++axis) {
         const auto& joint = kJointConfigs[axis];
+        const char* owner = robo_6dof::board_config::is_mega_axis(axis) ? "Mega/RAMPS" : "ESP32";
         ESP_LOGD(TAG,
-                 "q%u %s: STEP=GPIO%d DIR=GPIO%d home=%.1f min=%.1f max=%.1f "
+                 "q%u %s (%s): STEP=GPIO%d DIR=GPIO%d home=%.1f min=%.1f max=%.1f "
                  "steps/rev=%d microstep=%d gear=%.2f invert=%s max_speed=%.1f max_accel=%.1f",
                  static_cast<unsigned>(axis + 1),
                  joint.name,
+                 owner,
                  static_cast<int>(joint.step_gpio),
                  static_cast<int>(joint.dir_gpio),
                  static_cast<double>(joint.home_deg),
@@ -258,6 +296,16 @@ const JointConfig* joint_configs()
 std::size_t joint_count()
 {
     return kJointCount;
+}
+
+bool is_mega_axis(std::size_t axis)
+{
+    return axis < kMegaJointCount;
+}
+
+bool is_local_stepper_axis(std::size_t axis)
+{
+    return axis == kLocalStepperAxis;
 }
 
 bool validate_joint_target_deg(std::size_t axis, float target_deg)

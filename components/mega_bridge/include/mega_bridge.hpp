@@ -1,0 +1,20 @@
+#pragma once
+
+#include <array>
+
+#include "board_config.hpp"
+#include "esp_err.h"
+
+namespace robo_6dof {
+namespace mega_bridge {
+
+esp_err_t init();
+esp_err_t ping();
+esp_err_t prepare_move(const std::array<float, board_config::kMegaJointCount>& targets_deg);
+esp_err_t start_prepared_move();
+esp_err_t wait_for_move_done();
+esp_err_t stop();
+esp_err_t emergency_stop();
+
+} // namespace mega_bridge
+} // namespace robo_6dof

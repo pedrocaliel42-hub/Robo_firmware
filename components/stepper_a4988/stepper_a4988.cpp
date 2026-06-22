@@ -11,6 +11,12 @@ constexpr uint32_t kStepPulseHighUs = 5;
 
 const robo_6dof::board_config::JointConfig* checked_joint(std::size_t axis)
 {
+    if (!robo_6dof::board_config::is_local_stepper_axis(axis)) {
+        ESP_LOGE(TAG, "axis q%u is not controlled by local ESP32 STEP/DIR",
+                 static_cast<unsigned>(axis + 1));
+        return nullptr;
+    }
+
     const auto* joint = robo_6dof::board_config::joint_config(axis);
     if (joint == nullptr) {
         ESP_LOGE(TAG, "invalid axis %u", static_cast<unsigned>(axis));
@@ -25,6 +31,10 @@ namespace stepper_a4988 {
 esp_err_t init()
 {
     for (std::size_t axis = 0; axis < board_config::joint_count(); ++axis) {
+        if (!board_config::is_local_stepper_axis(axis)) {
+            continue;
+        }
+
         const auto* joint = board_config::joint_config(axis);
         if (joint == nullptr) {
             return ESP_ERR_INVALID_ARG;
@@ -34,7 +44,7 @@ esp_err_t init()
         gpio_set_level(joint->dir_gpio, 0);
     }
 
-    ESP_LOGD(TAG, "module ready with STEP/DIR outputs idle low");
+    ESP_LOGD(TAG, "module ready with q6 STEP/DIR outputs idle low");
     return ESP_OK;
 }
 
@@ -66,6 +76,10 @@ esp_err_t pulse(std::size_t axis)
 esp_err_t disable_all()
 {
     for (std::size_t axis = 0; axis < board_config::joint_count(); ++axis) {
+        if (!board_config::is_local_stepper_axis(axis)) {
+            continue;
+        }
+
         const auto* joint = board_config::joint_config(axis);
         if (joint == nullptr) {
             return ESP_ERR_INVALID_ARG;

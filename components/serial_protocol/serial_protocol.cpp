@@ -15,6 +15,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "gripper_servo.hpp"
+#include "mega_bridge.hpp"
 #include "motion_control.hpp"
 #include "robot_state.hpp"
 
@@ -250,6 +251,8 @@ void handle_stop(std::size_t token_count)
         return;
     }
 
+    robo_6dof::mega_bridge::stop();
+
     if (robo_6dof::robot_state::stop() != ESP_OK) {
         write_line("ERR_ESTOP");
         return;
@@ -267,6 +270,7 @@ void handle_estop(std::size_t token_count)
     }
 
     robo_6dof::robot_state::emergency_stop();
+    robo_6dof::mega_bridge::emergency_stop();
     set_pos_stream_enabled(false);
     write_line("OK_ESTOP");
 }

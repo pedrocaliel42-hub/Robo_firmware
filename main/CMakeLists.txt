@@ -4,6 +4,7 @@ idf_component_register(
     REQUIRES
         board_config
         gripper_servo
+        mega_bridge
         motion_control
         robot_state
         sensors
