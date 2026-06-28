@@ -165,6 +165,30 @@ Exemplo: motor de 200 passos, microstep 16 e redução 10:1:
 steps_per_degree = 200 * 16 * 10 / 360 = 88.888 passos/grau
 ```
 
+### Rampa de aceleração do Mega
+
+Os movimentos absolutos (`MGO`) e relativos (`MJOG`) usam o mesmo perfil
+coordenado de aceleração, cruzeiro e desaceleração. Os parâmetros ficam no
+início de `robo_mega_ramps.ino`:
+
+```cpp
+constexpr uint16_t kStepIntervalStartUs = 800;
+constexpr uint16_t kStepIntervalCruiseUs = 120;
+constexpr unsigned long kAccelerationSteps = 1200UL;
+```
+
+- `kStepIntervalStartUs`: intervalo de partida e chegada; maior significa mais
+  suave e lento.
+- `kStepIntervalCruiseUs`: intervalo na velocidade máxima; menor significa
+  mais rápido.
+- `kAccelerationSteps`: duração de cada rampa em passos; maior significa uma
+  transição mais gradual.
+
+Movimentos longos possuem perfil trapezoidal. Em movimentos curtos, as rampas
+se encontram antes da velocidade máxima e formam um perfil triangular. A
+calibração deve começar com o robô sem carga, reduzindo o intervalo de cruzeiro
+gradualmente e verificando perda de passos, ruído e aquecimento.
+
 Ligação UART:
 
 - Mega RX1 pin 19 recebe TX do ESP32.

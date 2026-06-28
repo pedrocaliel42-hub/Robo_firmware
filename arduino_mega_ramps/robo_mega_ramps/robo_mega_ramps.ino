@@ -5,7 +5,22 @@ constexpr uint8_t kAxisCount = 5;
 constexpr uint8_t kLineBufferLength = 128;
 constexpr uint32_t kBaudRate = 115200;
 constexpr uint16_t kStepPulseHighUs = 5;
-constexpr uint16_t kStepIntervalUs = 200;
+// Perfil de velocidade dos movimentos coordenados:
+// - parte de kStepIntervalStartUs (mais lento);
+// - acelera durante kAccelerationSteps;
+// - permanece em kStepIntervalCruiseUs;
+// - desacelera de forma simetrica antes do destino.
+//
+// Intervalo menor = velocidade maior. Calibre o cruzeiro gradualmente para
+// evitar perda de passos. O pulso HIGH e o tempo do proprio loop se somam
+// ao intervalo configurado.
+constexpr uint16_t kStepIntervalStartUs = 800;
+constexpr uint16_t kStepIntervalCruiseUs = 120;
+constexpr unsigned long kAccelerationSteps = 1200UL;
+static_assert(
+    kStepIntervalStartUs >= kStepIntervalCruiseUs,
+    "O intervalo inicial deve ser maior ou igual ao intervalo de cruzeiro");
+static_assert(kAccelerationSteps > 0UL, "A rampa deve possuir ao menos um passo");
 constexpr uint8_t kGripperServoPin = 11;  // RAMPS 1.4 servo header (AUX-3, D11)
 
 // Ajuste aqui as reducoes mecanicas dos eixos no RAMPS.
@@ -98,6 +113,32 @@ void pulse_axis(uint8_t axis)
     digitalWrite(kAxes[axis].step_pin, HIGH);
     delayMicroseconds(kStepPulseHighUs);
     digitalWrite(kAxes[axis].step_pin, LOW);
+}
+
+uint16_t step_interval_us(unsigned long step_index, unsigned long total_steps)
+{
+    if (total_steps <= 1UL) {
+        return kStepIntervalStartUs;
+    }
+
+    // A distancia ate a extremidade mais proxima gera perfis simetricos de
+    // aceleracao e desaceleracao. Em movimentos curtos, as duas rampas se
+    // encontram antes do cruzeiro, formando naturalmente um perfil triangular.
+    const unsigned long steps_from_start = step_index;
+    const unsigned long steps_to_end = total_steps - 1UL - step_index;
+    unsigned long ramp_progress =
+        steps_from_start < steps_to_end ? steps_from_start : steps_to_end;
+    if (ramp_progress > kAccelerationSteps) {
+        ramp_progress = kAccelerationSteps;
+    }
+
+    const uint32_t interval_range =
+        static_cast<uint32_t>(kStepIntervalStartUs - kStepIntervalCruiseUs);
+    const uint32_t interval_reduction =
+        (interval_range * ramp_progress) / kAccelerationSteps;
+
+    return static_cast<uint16_t>(
+        static_cast<uint32_t>(kStepIntervalStartUs) - interval_reduction);
 }
 
 void send_line(const __FlashStringHelper* text)
@@ -263,7 +304,7 @@ bool execute_prepared_move()
             }
         }
 
-        delayMicroseconds(kStepIntervalUs);
+        delayMicroseconds(step_interval_us(step_index, max_steps));
     }
 
     for (uint8_t axis = 0; axis < kAxisCount; ++axis) {
@@ -448,7 +489,7 @@ void handle_mjog(char* tokens[], uint8_t token_count)
             }
         }
 
-        delayMicroseconds(kStepIntervalUs);
+        delayMicroseconds(step_interval_us(step_index, max_steps));
     }
 
     // Jog relativo: NAO atualiza g_current_deg (nao memoriza posicao).
