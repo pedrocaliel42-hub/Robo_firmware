@@ -14,7 +14,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "gripper_servo.hpp"
 #include "mega_bridge.hpp"
 #include "motion_control.hpp"
 #include "robot_state.hpp"
@@ -369,7 +368,7 @@ void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
         return;
     }
 
-    esp_err_t grip_err = robo_6dof::gripper_servo::set_percent(gripper_percent);
+    esp_err_t grip_err = robo_6dof::mega_bridge::set_gripper_percent(gripper_percent);
     if (grip_err != ESP_OK) {
         write_line("ERR_FAULT");
         return;
@@ -381,6 +380,39 @@ void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
         return;
     }
     if (grip_err != ESP_OK) {
+        write_line("ERR_FAULT");
+        return;
+    }
+
+    write_line("OK_MOVE_DONE");
+}
+
+void handle_jog(const std::array<char*, kMaxTokens>& tokens, std::size_t token_count)
+{
+    // JOG,d1,d2,d3,d4,d5,d6 — deltas relativos em graus (sem limite, não memoriza).
+    if (token_count != 7) {
+        write_line("ERR_BAD_FORMAT");
+        return;
+    }
+
+    if (reject_if_not_ready_for_motion()) {
+        return;
+    }
+
+    std::array<float, robo_6dof::board_config::kJointCount> deltas = {};
+    for (std::size_t axis = 0; axis < deltas.size(); ++axis) {
+        if (!parse_float(tokens[axis + 1], &deltas[axis])) {
+            write_line("ERR_BAD_FORMAT");
+            return;
+        }
+    }
+
+    const esp_err_t err = robo_6dof::motion_control::jog_relative(deltas);
+    if (err == ESP_ERR_INVALID_STATE) {
+        write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
+        return;
+    }
+    if (err != ESP_OK) {
         write_line("ERR_FAULT");
         return;
     }
@@ -405,7 +437,7 @@ void handle_gripper(const std::array<char*, kMaxTokens>& tokens, std::size_t tok
         return;
     }
 
-    esp_err_t err = robo_6dof::gripper_servo::set_percent(gripper_percent);
+    esp_err_t err = robo_6dof::mega_bridge::set_gripper_percent(gripper_percent);
     if (err != ESP_OK) {
         write_line("ERR_FAULT");
         return;
@@ -454,6 +486,8 @@ void handle_line(char* line)
         handle_ang(tokens, token_count);
     } else if (std::strcmp(tokens[0], "GRP") == 0) {
         handle_gripper(tokens, token_count);
+    } else if (std::strcmp(tokens[0], "JOG") == 0) {
+        handle_jog(tokens, token_count);
     } else if (std::strcmp(tokens[0], "MOV") == 0) {
         write_line("ERR_UNSUPPORTED_MOV");
     } else if (std::strcmp(tokens[0], "POS?") == 0) {

@@ -34,6 +34,7 @@ bool can_accept_motion();
 RobotMode mode();
 const char* mode_name(RobotMode mode);
 esp_err_t begin_motion();
+esp_err_t finish_jog();
 esp_err_t finish_joint_motion(const std::array<float, board_config::kJointCount>& reached_deg);
 esp_err_t finish_home_motion();
 esp_err_t set_joint_targets_deg(const std::array<float, board_config::kJointCount>& targets_deg);

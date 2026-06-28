@@ -11,22 +11,22 @@ constexpr char TAG[] = "board_config";
 // Ajuste aqui as reducoes mecanicas de cada junta.
 // Exemplo: motor com reducao 10:1 usa 10.0F.
 #ifndef ROBO_Q1_GEAR_RATIO
-#define ROBO_Q1_GEAR_RATIO 1.0F
+#define ROBO_Q1_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q2_GEAR_RATIO
-#define ROBO_Q2_GEAR_RATIO 1.0F
+#define ROBO_Q2_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q3_GEAR_RATIO
-#define ROBO_Q3_GEAR_RATIO 1.0F
+#define ROBO_Q3_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q4_GEAR_RATIO
-#define ROBO_Q4_GEAR_RATIO 1.0F
+#define ROBO_Q4_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q5_GEAR_RATIO
-#define ROBO_Q5_GEAR_RATIO 1.0F
+#define ROBO_Q5_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q6_GEAR_RATIO
-#define ROBO_Q6_GEAR_RATIO 1.0F
+#define ROBO_Q6_GEAR_RATIO 38.4F
 #endif
 
 constexpr robo_6dof::board_config::HardwarePins kHardwarePins = {

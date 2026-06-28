@@ -283,6 +283,19 @@ esp_err_t begin_motion()
     return ESP_OK;
 }
 
+esp_err_t finish_jog()
+{
+    StateLock lock;
+
+    if (g_state.mode != RobotMode::Moving) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Jog relativo não memoriza posição: apenas volta para Armed.
+    transition_unlocked(RobotMode::Armed);
+    return ESP_OK;
+}
+
 esp_err_t finish_joint_motion(const std::array<float, board_config::kJointCount>& reached_deg)
 {
     std::size_t first_invalid_axis = 0;

@@ -256,15 +256,19 @@ esp_err_t start_prepared_move()
     return write_command(command);
 }
 
-esp_err_t wait_for_move_done()
+esp_err_t wait_for_move_done(uint32_t timeout_ms)
 {
     BridgeLock lock;
+
+    // timeout_ms == 0 usa o timeout padrao; movimentos longos passam um valor maior.
+    const uint32_t effective_timeout =
+        (timeout_ms < kResponseTimeoutMs) ? kResponseTimeoutMs : timeout_ms;
 
     char expected[kLineBufferLength] = {};
     std::snprintf(expected, sizeof(expected), "MDONE,%lu", static_cast<unsigned long>(g_sequence));
 
     char line[kLineBufferLength] = {};
-    ESP_RETURN_ON_ERROR(read_line(line, sizeof(line), kResponseTimeoutMs), TAG, "read MDONE failed");
+    ESP_RETURN_ON_ERROR(read_line(line, sizeof(line), effective_timeout), TAG, "read MDONE failed");
 
     if (std::strcmp(line, expected) == 0) {
         return ESP_OK;
@@ -289,6 +293,47 @@ esp_err_t emergency_stop()
 {
     BridgeLock lock;
     return command_expect_exact("MESTOP", "MOK_ESTOP");
+}
+
+esp_err_t set_gripper_percent(int percent)
+{
+    BridgeLock lock;
+    const int clamped = (percent < 0) ? 0 : (percent > 100) ? 100 : percent;
+    char command[kLineBufferLength] = {};
+    std::snprintf(command, sizeof(command), "MGRP,%d", clamped);
+    return command_expect_exact(command, "MOK_GRIP");
+}
+
+esp_err_t jog_relative(
+    const std::array<float, board_config::kMegaJointCount>& deltas_deg,
+    uint32_t timeout_ms)
+{
+    BridgeLock lock;
+
+    const uint32_t effective_timeout =
+        (timeout_ms < kResponseTimeoutMs) ? kResponseTimeoutMs : timeout_ms;
+
+    char command[kLineBufferLength] = {};
+    std::snprintf(command,
+                  sizeof(command),
+                  "MJOG,%.3f,%.3f,%.3f,%.3f,%.3f",
+                  static_cast<double>(deltas_deg[0]),
+                  static_cast<double>(deltas_deg[1]),
+                  static_cast<double>(deltas_deg[2]),
+                  static_cast<double>(deltas_deg[3]),
+                  static_cast<double>(deltas_deg[4]));
+
+    ESP_RETURN_ON_ERROR(write_command(command), TAG, "write MJOG failed");
+
+    char line[kLineBufferLength] = {};
+    ESP_RETURN_ON_ERROR(read_line(line, sizeof(line), effective_timeout), TAG, "read MJOG failed");
+
+    if (std::strcmp(line, "MJOGDONE") == 0) {
+        return ESP_OK;
+    }
+
+    ESP_LOGW(TAG, "unexpected MJOG response: expected 'MJOGDONE', got '%s'", line);
+    return response_is_error(line) ? ESP_ERR_INVALID_ARG : ESP_FAIL;
 }
 
 } // namespace mega_bridge

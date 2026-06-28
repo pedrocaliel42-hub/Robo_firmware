@@ -1,27 +1,28 @@
 #include <Arduino.h>
+#include <Servo.h>
 
 constexpr uint8_t kAxisCount = 5;
 constexpr uint8_t kLineBufferLength = 128;
 constexpr uint32_t kBaudRate = 115200;
 constexpr uint16_t kStepPulseHighUs = 5;
-constexpr uint16_t kStepIntervalUs = 2000;
+constexpr uint16_t kStepIntervalUs = 200;
+constexpr uint8_t kGripperServoPin = 11;  // RAMPS 1.4 servo header (AUX-3, D11)
 
 // Ajuste aqui as reducoes mecanicas dos eixos no RAMPS.
-// Exemplo: motor com reducao 10:1 usa 10.0F.
 #ifndef ROBO_Q1_GEAR_RATIO
-#define ROBO_Q1_GEAR_RATIO 1.0F
+#define ROBO_Q1_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q2_GEAR_RATIO
-#define ROBO_Q2_GEAR_RATIO 1.0F
+#define ROBO_Q2_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q3_GEAR_RATIO
-#define ROBO_Q3_GEAR_RATIO 1.0F
+#define ROBO_Q3_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q4_GEAR_RATIO
-#define ROBO_Q4_GEAR_RATIO 1.0F
+#define ROBO_Q4_GEAR_RATIO 38.4F
 #endif
 #ifndef ROBO_Q5_GEAR_RATIO
-#define ROBO_Q5_GEAR_RATIO 1.0F
+#define ROBO_Q5_GEAR_RATIO 38.4F
 #endif
 
 struct AxisConfig {
@@ -55,6 +56,8 @@ bool g_stop_requested = false;
 
 char g_line[kLineBufferLength] = {};
 uint8_t g_line_length = 0;
+
+Servo g_gripper_servo;
 
 void enable_drivers(bool enabled)
 {
@@ -100,11 +103,13 @@ void pulse_axis(uint8_t axis)
 void send_line(const __FlashStringHelper* text)
 {
     Serial1.println(text);
+    Serial.println(text);
 }
 
 void send_error(const __FlashStringHelper* error)
 {
     Serial1.println(error);
+    Serial.println(error);
 }
 
 void send_sequence_response(const char* prefix, uint32_t sequence)
@@ -112,6 +117,9 @@ void send_sequence_response(const char* prefix, uint32_t sequence)
     Serial1.print(prefix);
     Serial1.print(',');
     Serial1.println(sequence);
+    Serial.print(prefix);
+    Serial.print(',');
+    Serial.println(sequence);
 }
 
 char* trim_token(char* token)
@@ -355,6 +363,98 @@ void handle_mstop(char* tokens[], uint8_t token_count)
     send_sequence_response("MSTOPPED", sequence);
 }
 
+void handle_mgrp(char* tokens[], uint8_t token_count)
+{
+    if (g_estop) {
+        send_error(F("MERR_ESTOP"));
+        return;
+    }
+
+    if (token_count != 2) {
+        send_error(F("MERR_FORMAT"));
+        return;
+    }
+
+    float parsed = 0.0F;
+    if (!parse_float_token(tokens[1], &parsed)) {
+        send_error(F("MERR_FORMAT"));
+        return;
+    }
+
+    const int percent = constrain(static_cast<int>(parsed), 0, 100);
+    // Mapeia 0-100% para 2000-1000 µs (invertido: 0%=aberta, 100%=fechada)
+    const int us = map(percent, 0, 100, 2000, 1000);
+    g_gripper_servo.writeMicroseconds(us);
+    send_line(F("MOK_GRIP"));
+}
+
+void handle_mjog(char* tokens[], uint8_t token_count)
+{
+    if (g_estop) {
+        send_error(F("MERR_ESTOP"));
+        return;
+    }
+
+    // MJOG + 5 deltas (graus, relativo)
+    if (token_count != 6) {
+        send_error(F("MERR_FORMAT"));
+        return;
+    }
+
+    long delta_steps[kAxisCount] = {};
+    unsigned long abs_steps[kAxisCount] = {};
+    unsigned long accumulators[kAxisCount] = {};
+    unsigned long max_steps = 0;
+
+    for (uint8_t axis = 0; axis < kAxisCount; ++axis) {
+        float delta_deg = 0.0F;
+        if (!parse_float_token(tokens[axis + 1], &delta_deg)) {
+            send_error(F("MERR_FORMAT"));
+            return;
+        }
+        delta_steps[axis] = degrees_to_steps(axis, delta_deg);
+        abs_steps[axis] = labs(delta_steps[axis]);
+        if (abs_steps[axis] > max_steps) {
+            max_steps = abs_steps[axis];
+        }
+        set_direction(axis, delta_steps[axis] >= 0);
+    }
+
+    g_stop_requested = false;
+
+    if (max_steps == 0) {
+        send_line(F("MJOGDONE"));
+        return;
+    }
+
+    enable_drivers(true);
+
+    for (unsigned long step_index = 0; step_index < max_steps; ++step_index) {
+        poll_runtime_commands();
+        if (g_estop || g_stop_requested) {
+            enable_drivers(false);
+            send_error(g_estop ? F("MERR_ESTOP") : F("MERR_FAULT"));
+            return;
+        }
+
+        for (uint8_t axis = 0; axis < kAxisCount; ++axis) {
+            if (abs_steps[axis] == 0) {
+                continue;
+            }
+            accumulators[axis] += abs_steps[axis];
+            if (accumulators[axis] >= max_steps) {
+                accumulators[axis] -= max_steps;
+                pulse_axis(axis);
+            }
+        }
+
+        delayMicroseconds(kStepIntervalUs);
+    }
+
+    // Jog relativo: NAO atualiza g_current_deg (nao memoriza posicao).
+    send_line(F("MJOGDONE"));
+}
+
 void handle_line(char* line)
 {
     char* tokens[8] = {};
@@ -377,13 +477,21 @@ void handle_line(char* line)
         g_has_prepared_move = false;
         enable_drivers(false);
         send_line(F("MOK_ESTOP"));
+    } else if (strcmp(tokens[0], "MGRP") == 0) {
+        handle_mgrp(tokens, token_count);
+    } else if (strcmp(tokens[0], "MJOG") == 0) {
+        handle_mjog(tokens, token_count);
     } else {
         send_error(F("MERR_FORMAT"));
     }
 }
 
+char g_usb_line[kLineBufferLength] = {};
+uint8_t g_usb_line_length = 0;
+
 void setup()
 {
+    Serial.begin(kBaudRate);
     Serial1.begin(kBaudRate);
 
     for (uint8_t axis = 0; axis < kAxisCount; ++axis) {
@@ -397,6 +505,10 @@ void setup()
     }
 
     enable_drivers(false);
+
+    // Servo da garra no header RAMPS 1.4 (D11)
+    g_gripper_servo.attach(kGripperServoPin, 1000, 2000);
+    g_gripper_servo.writeMicroseconds(2000);  // posição inicial: aberta (0%)
 }
 
 void loop()
@@ -433,5 +545,39 @@ void loop()
         }
 
         g_line[g_line_length++] = ch;
+    }
+
+    while (Serial.available() > 0) {
+        const char ch = static_cast<char>(Serial.read());
+
+        if (ch == '\r' || ch == '\n') {
+            if (g_usb_line_length == 0) {
+                continue;
+            }
+
+            g_usb_line[g_usb_line_length] = '\0';
+            handle_line(g_usb_line);
+            g_usb_line_length = 0;
+            continue;
+        }
+
+        if (ch == '\b' || ch == 0x7F) {
+            if (g_usb_line_length > 0) {
+                --g_usb_line_length;
+            }
+            continue;
+        }
+
+        if (!isPrintable(ch)) {
+            continue;
+        }
+
+        if (g_usb_line_length >= kLineBufferLength - 1) {
+            g_usb_line_length = 0;
+            send_error(F("MERR_FORMAT"));
+            continue;
+        }
+
+        g_usb_line[g_usb_line_length++] = ch;
     }
 }
