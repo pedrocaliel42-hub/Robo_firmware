@@ -293,6 +293,7 @@ bool execute_prepared_move()
     }
 
     if (max_steps == 0) {
+        enable_q2_q3(false);
         return true;
     }
 
@@ -324,6 +325,7 @@ bool execute_prepared_move()
         g_current_deg[axis] = g_prepared_deg[axis];
     }
 
+    enable_q2_q3(false);
     return true;
 }
 
@@ -525,6 +527,7 @@ void handle_mjog(char* tokens[], uint8_t token_count)
     g_stop_requested = false;
 
     if (max_steps == 0) {
+        enable_q2_q3(false);
         send_line(F("MJOGDONE"));
         return;
     }
@@ -556,7 +559,9 @@ void handle_mjog(char* tokens[], uint8_t token_count)
     for (uint8_t axis = 0; axis < kAxisCount; ++axis) {
         g_current_deg[axis] = reached_deg[axis];
     }
-        send_line(F("MJOGDONE"));
+
+    enable_q2_q3(false);
+    send_line(F("MJOGDONE"));
 }
 
 void handle_line(char* line)
