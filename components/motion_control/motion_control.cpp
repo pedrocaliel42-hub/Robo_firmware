@@ -16,6 +16,7 @@
 namespace {
 constexpr char TAG[] = "motion_control";
 constexpr uint32_t kStepIntervalUs = 200;
+bool g_q2_locked = true;
 
 float steps_per_degree(const robo_6dof::board_config::JointConfig& joint)
 {
@@ -126,6 +127,16 @@ uint32_t estimate_mega_move_timeout_ms(
 namespace robo_6dof {
 namespace motion_control {
 
+void set_q2_locked(bool locked)
+{
+    g_q2_locked = locked;
+}
+
+bool q2_locked()
+{
+    return g_q2_locked;
+}
+
 esp_err_t init()
 {
     ESP_LOGD(TAG, "module ready");
@@ -142,6 +153,9 @@ esp_err_t move_to_targets_deg(const std::array<float, board_config::kJointCount>
     }
 
     const auto current = robot_state::snapshot();
+    if (g_q2_locked && degrees_to_steps(1, targets_deg[1] - current.joints_deg[1]) != 0) {
+        return ESP_ERR_NOT_ALLOWED;
+    }
 
     const esp_err_t prepare_err = mega_bridge::prepare_move(mega_targets_from(targets_deg));
     if (prepare_err != ESP_OK) {
@@ -206,6 +220,9 @@ esp_err_t execute_relative_q6(float delta_deg)
 
 esp_err_t jog_relative(const std::array<float, board_config::kJointCount>& deltas_deg)
 {
+    if (g_q2_locked && degrees_to_steps(1, deltas_deg[1]) != 0) {
+        return ESP_ERR_NOT_ALLOWED;
+    }
     const auto current = robot_state::snapshot();
     auto reached = current.joints_deg;
     for (std::size_t axis = 0; axis < reached.size(); ++axis) {

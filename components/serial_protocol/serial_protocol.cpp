@@ -333,6 +333,8 @@ void handle_home(std::size_t token_count)
     const esp_err_t err = robo_6dof::motion_control::move_home();
     if (err == ESP_ERR_INVALID_ARG) {
         write_line("ERR_LIMIT");
+    } else if (err == ESP_ERR_NOT_ALLOWED) {
+        write_line("ERR_Q2_LOCKED");
     } else if (err == ESP_ERR_INVALID_STATE) {
         write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
     } else if (err == ESP_OK) {
@@ -406,6 +408,32 @@ void handle_q23_power(
     write_line(enable ? "OK_Q23_ON" : "OK_Q23_OFF");
 }
 
+void handle_q2_lock(
+    const std::array<char*, kMaxTokens>& tokens,
+    std::size_t token_count)
+{
+    if (token_count != 2) {
+        write_line("ERR_BAD_FORMAT");
+        return;
+    }
+    if (reject_if_not_ready_for_motion()) {
+        return;
+    }
+
+    uppercase_ascii(tokens[1]);
+    const bool locked = std::strcmp(tokens[1], "ON") == 0;
+    if (!locked && std::strcmp(tokens[1], "OFF") != 0) {
+        write_line("ERR_BAD_FORMAT");
+        return;
+    }
+    if (robo_6dof::mega_bridge::set_q2_locked(locked) != ESP_OK) {
+        write_line("ERR_FAULT");
+        return;
+    }
+    robo_6dof::motion_control::set_q2_locked(locked);
+    write_line(locked ? "OK_Q2_LOCKED" : "OK_Q2_UNLOCKED");
+}
+
 void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_count)
 {
     if (token_count != 8) {
@@ -441,6 +469,10 @@ void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
     }
     if (move_err == ESP_ERR_INVALID_STATE) {
         write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
+        return;
+    }
+    if (move_err == ESP_ERR_NOT_ALLOWED) {
+        write_line("ERR_Q2_LOCKED");
         return;
     }
     if (move_err != ESP_OK) {
@@ -494,6 +526,10 @@ void handle_jog(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
     }
     if (err == ESP_ERR_INVALID_STATE) {
         write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
+        return;
+    }
+    if (err == ESP_ERR_NOT_ALLOWED) {
+        write_line("ERR_Q2_LOCKED");
         return;
     }
     if (err != ESP_OK) {
@@ -573,6 +609,8 @@ void handle_line(char* line)
         handle_ref_query(token_count);
     } else if (std::strcmp(tokens[0], "Q23_POWER") == 0) {
         handle_q23_power(tokens, token_count);
+    } else if (std::strcmp(tokens[0], "Q2_LOCK") == 0) {
+        handle_q2_lock(tokens, token_count);
     } else if (std::strcmp(tokens[0], "ANG") == 0) {
         handle_ang(tokens, token_count);
     } else if (std::strcmp(tokens[0], "GRP") == 0) {

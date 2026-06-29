@@ -12,6 +12,7 @@ esp_err_t init();
 esp_err_t ping();
 esp_err_t reference_home();
 esp_err_t set_q23_power(bool enabled);
+esp_err_t set_q2_locked(bool locked);
 esp_err_t prepare_move(const std::array<float, board_config::kMegaJointCount>& targets_deg);
 esp_err_t start_prepared_move();
 esp_err_t wait_for_move_done(uint32_t timeout_ms = 0);

@@ -69,6 +69,7 @@ bool g_has_prepared_move = false;
 bool g_estop = false;
 bool g_stop_requested = false;
 bool g_referenced = false;
+bool g_q2_locked = true;
 
 char g_line[kLineBufferLength] = {};
 uint8_t g_line_length = 0;
@@ -362,6 +363,10 @@ void handle_mprep(char* tokens[], uint8_t token_count)
             return;
         }
     }
+    if (g_q2_locked && fabs(parsed_targets[1] - g_current_deg[1]) > 0.001F) {
+        send_error(F("MERR_Q2_LOCKED"));
+        return;
+    }
 
     for (uint8_t axis = 0; axis < kAxisCount; ++axis) {
         g_prepared_deg[axis] = parsed_targets[axis];
@@ -486,6 +491,23 @@ void handle_mpower23(char* tokens[], uint8_t token_count)
     }
 }
 
+void handle_mq2lock(char* tokens[], uint8_t token_count)
+{
+    if (token_count != 2) {
+        send_error(F("MERR_FORMAT"));
+        return;
+    }
+    if (strcmp(tokens[1], "ON") == 0) {
+        g_q2_locked = true;
+        send_line(F("MOK_Q2_LOCKED"));
+    } else if (strcmp(tokens[1], "OFF") == 0) {
+        g_q2_locked = false;
+        send_line(F("MOK_Q2_UNLOCKED"));
+    } else {
+        send_error(F("MERR_FORMAT"));
+    }
+}
+
 void handle_mjog(char* tokens[], uint8_t token_count)
 {
     if (g_estop) {
@@ -512,6 +534,10 @@ void handle_mjog(char* tokens[], uint8_t token_count)
             return;
         }
         delta_steps[axis] = degrees_to_steps(axis, delta_deg);
+        if (axis == 1 && g_q2_locked && delta_steps[axis] != 0) {
+            send_error(F("MERR_Q2_LOCKED"));
+            return;
+        }
         reached_deg[axis] = g_current_deg[axis] + steps_to_degrees(axis, delta_steps[axis]);
         if (g_referenced && !validate_target(axis, reached_deg[axis])) {
             send_error(F("MERR_LIMIT"));
@@ -593,6 +619,8 @@ void handle_line(char* line)
         handle_mref(token_count);
     } else if (strcmp(tokens[0], "MPOWER23") == 0) {
         handle_mpower23(tokens, token_count);
+    } else if (strcmp(tokens[0], "MQ2LOCK") == 0) {
+        handle_mq2lock(tokens, token_count);
     } else if (strcmp(tokens[0], "MJOG") == 0) {
         handle_mjog(tokens, token_count);
     } else {

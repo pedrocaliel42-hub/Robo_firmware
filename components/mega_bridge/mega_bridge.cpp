@@ -229,6 +229,14 @@ esp_err_t set_q23_power(bool enabled)
         enabled ? "MOK_Q23_ON" : "MOK_Q23_OFF");
 }
 
+esp_err_t set_q2_locked(bool locked)
+{
+    BridgeLock lock;
+    return command_expect_exact(
+        locked ? "MQ2LOCK,ON" : "MQ2LOCK,OFF",
+        locked ? "MOK_Q2_LOCKED" : "MOK_Q2_UNLOCKED");
+}
+
 esp_err_t prepare_move(const std::array<float, board_config::kMegaJointCount>& targets_deg)
 {
     BridgeLock lock;
