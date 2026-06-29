@@ -380,6 +380,32 @@ void handle_ref_query(std::size_t token_count)
     write_line(line);
 }
 
+void handle_q23_power(
+    const std::array<char*, kMaxTokens>& tokens,
+    std::size_t token_count)
+{
+    if (token_count != 2) {
+        write_line("ERR_BAD_FORMAT");
+        return;
+    }
+    if (reject_if_not_ready_for_motion()) {
+        return;
+    }
+
+    uppercase_ascii(tokens[1]);
+    const bool enable = std::strcmp(tokens[1], "ON") == 0;
+    if (!enable && std::strcmp(tokens[1], "OFF") != 0) {
+        write_line("ERR_BAD_FORMAT");
+        return;
+    }
+
+    if (robo_6dof::mega_bridge::set_q23_power(enable) != ESP_OK) {
+        write_line("ERR_FAULT");
+        return;
+    }
+    write_line(enable ? "OK_Q23_ON" : "OK_Q23_OFF");
+}
+
 void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_count)
 {
     if (token_count != 8) {
@@ -541,6 +567,8 @@ void handle_line(char* line)
         handle_ref_home(token_count);
     } else if (std::strcmp(tokens[0], "REF?") == 0) {
         handle_ref_query(token_count);
+    } else if (std::strcmp(tokens[0], "Q23_POWER") == 0) {
+        handle_q23_power(tokens, token_count);
     } else if (std::strcmp(tokens[0], "ANG") == 0) {
         handle_ang(tokens, token_count);
     } else if (std::strcmp(tokens[0], "GRP") == 0) {

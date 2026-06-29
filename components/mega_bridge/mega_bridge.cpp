@@ -221,6 +221,14 @@ esp_err_t reference_home()
     return command_expect_exact("MREF", "MOK_REF_HOME");
 }
 
+esp_err_t set_q23_power(bool enabled)
+{
+    BridgeLock lock;
+    return command_expect_exact(
+        enabled ? "MPOWER23,ON" : "MPOWER23,OFF",
+        enabled ? "MOK_Q23_ON" : "MOK_Q23_OFF");
+}
+
 esp_err_t prepare_move(const std::array<float, board_config::kMegaJointCount>& targets_deg)
 {
     BridgeLock lock;

@@ -300,6 +300,12 @@ esp_err_t confirm_manual_home()
     return ESP_OK;
 }
 
+void invalidate_reference()
+{
+    StateLock lock;
+    g_state.reference = ReferenceState::ReferenceLost;
+}
+
 RobotMode mode()
 {
     StateLock lock;

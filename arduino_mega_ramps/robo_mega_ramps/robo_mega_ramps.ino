@@ -82,6 +82,12 @@ void enable_drivers(bool enabled)
     }
 }
 
+void enable_q2_q3(bool enabled)
+{
+    digitalWrite(kAxes[1].enable_pin, enabled ? LOW : HIGH);
+    digitalWrite(kAxes[2].enable_pin, enabled ? LOW : HIGH);
+}
+
 float steps_per_degree(const AxisConfig& axis)
 {
     return (static_cast<float>(axis.steps_per_rev) *
@@ -456,6 +462,23 @@ void handle_mref(uint8_t token_count)
     send_line(F("MOK_REF_HOME"));
 }
 
+void handle_mpower23(char* tokens[], uint8_t token_count)
+{
+    if (token_count != 2) {
+        send_error(F("MERR_FORMAT"));
+        return;
+    }
+    if (strcmp(tokens[1], "ON") == 0) {
+        enable_q2_q3(true);
+        send_line(F("MOK_Q23_ON"));
+    } else if (strcmp(tokens[1], "OFF") == 0) {
+        enable_q2_q3(false);
+        send_line(F("MOK_Q23_OFF"));
+    } else {
+        send_error(F("MERR_FORMAT"));
+    }
+}
+
 void handle_mjog(char* tokens[], uint8_t token_count)
 {
     if (g_estop) {
@@ -550,6 +573,8 @@ void handle_line(char* line)
         handle_mgrp(tokens, token_count);
     } else if (strcmp(tokens[0], "MREF") == 0) {
         handle_mref(token_count);
+    } else if (strcmp(tokens[0], "MPOWER23") == 0) {
+        handle_mpower23(tokens, token_count);
     } else if (strcmp(tokens[0], "MJOG") == 0) {
         handle_mjog(tokens, token_count);
     } else {

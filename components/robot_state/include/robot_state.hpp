@@ -42,6 +42,7 @@ bool can_accept_absolute_motion();
 ReferenceState reference_state();
 const char* reference_name(ReferenceState state);
 esp_err_t confirm_manual_home();
+void invalidate_reference();
 RobotMode mode();
 const char* mode_name(RobotMode mode);
 esp_err_t begin_motion();
