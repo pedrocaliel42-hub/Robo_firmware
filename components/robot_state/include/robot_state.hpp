@@ -18,10 +18,17 @@ enum class RobotMode {
     Fault,
 };
 
+enum class ReferenceState {
+    Unreferenced,
+    Referenced,
+    ReferenceLost,
+};
+
 struct Snapshot {
     std::array<float, board_config::kJointCount> joints_deg;
     int gripper_percent;
     RobotMode mode;
+    ReferenceState reference;
 };
 
 esp_err_t init();
@@ -31,6 +38,10 @@ esp_err_t emergency_stop();
 bool is_armed();
 bool is_estop();
 bool can_accept_motion();
+bool can_accept_absolute_motion();
+ReferenceState reference_state();
+const char* reference_name(ReferenceState state);
+esp_err_t confirm_manual_home();
 RobotMode mode();
 const char* mode_name(RobotMode mode);
 esp_err_t begin_motion();

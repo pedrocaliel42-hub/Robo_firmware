@@ -215,6 +215,12 @@ esp_err_t ping()
     return command_expect_exact("MPING", "MOK_PONG");
 }
 
+esp_err_t reference_home()
+{
+    BridgeLock lock;
+    return command_expect_exact("MREF", "MOK_REF_HOME");
+}
+
 esp_err_t prepare_move(const std::array<float, board_config::kMegaJointCount>& targets_deg)
 {
     BridgeLock lock;

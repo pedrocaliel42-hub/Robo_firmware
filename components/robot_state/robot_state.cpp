@@ -18,6 +18,7 @@ struct StateData {
     std::array<float, robo_6dof::board_config::kJointCount> joints_deg;
     int gripper_percent;
     robo_6dof::robot_state::RobotMode mode;
+    robo_6dof::robot_state::ReferenceState reference;
 };
 
 SemaphoreHandle_t g_lock = nullptr;
@@ -186,6 +187,7 @@ esp_err_t init()
         g_state.mode = RobotMode::Boot;
         load_home_positions();
         g_state.gripper_percent = 0;
+        g_state.reference = ReferenceState::Unreferenced;
         transition_unlocked(RobotMode::Idle);
     }
 
@@ -238,6 +240,7 @@ esp_err_t stop()
 esp_err_t emergency_stop()
 {
     StateLock lock;
+    g_state.reference = ReferenceState::ReferenceLost;
     transition_unlocked(RobotMode::Estop);
     return ESP_OK;
 }
@@ -258,6 +261,43 @@ bool can_accept_motion()
 {
     StateLock lock;
     return can_accept_motion_unlocked();
+}
+
+bool can_accept_absolute_motion()
+{
+    StateLock lock;
+    return can_accept_motion_unlocked() && g_state.reference == ReferenceState::Referenced;
+}
+
+ReferenceState reference_state()
+{
+    StateLock lock;
+    return g_state.reference;
+}
+
+const char* reference_name(ReferenceState state)
+{
+    switch (state) {
+    case ReferenceState::Unreferenced:
+        return "UNREFERENCED";
+    case ReferenceState::Referenced:
+        return "REFERENCED";
+    case ReferenceState::ReferenceLost:
+        return "REFERENCE_LOST";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+esp_err_t confirm_manual_home()
+{
+    StateLock lock;
+    if (!can_accept_motion_unlocked()) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    load_home_positions();
+    g_state.reference = ReferenceState::Referenced;
+    return ESP_OK;
 }
 
 RobotMode mode()
@@ -386,6 +426,7 @@ Snapshot snapshot()
         g_state.joints_deg,
         g_state.gripper_percent,
         g_state.mode,
+        g_state.reference,
     };
 }
 

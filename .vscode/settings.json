@@ -15,5 +15,6 @@
     "--query-driver=**",
     "--compile-commands-dir=/home/pedrocaliel/Caliel/Robou_TOP/plano_cinematica_homing_movimento_6dof/Robo_firmware/build"
   ],
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "idf.port": "/dev/ttyUSB0"
 }

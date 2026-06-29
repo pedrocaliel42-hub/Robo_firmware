@@ -117,12 +117,8 @@ Pinos:
 
 | Eixo | STEP | DIR |
 |---|---:|---:|
-| q1 | GPIO13 | GPIO14 |
-| q2 | GPIO16 | GPIO17 |
-| q3 | GPIO18 | GPIO19 |
-| q4 | GPIO23 | GPIO25 |
-| q5 | GPIO26 | GPIO27 |
-| q6 | GPIO32 | GPIO33 |
+| q1–q5 | RAMPS 1.4 | RAMPS 1.4 |
+| q6 | GPIO14 | GPIO13 |
 
 Comandos sugeridos:
 

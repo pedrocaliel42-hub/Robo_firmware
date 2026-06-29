@@ -218,6 +218,16 @@ bool reject_if_not_ready_for_motion()
     return false;
 }
 
+bool reject_if_unreferenced()
+{
+    if (robo_6dof::robot_state::reference_state() !=
+        robo_6dof::robot_state::ReferenceState::Referenced) {
+        write_line("ERR_UNREFERENCED");
+        return true;
+    }
+    return false;
+}
+
 void handle_ping(std::size_t token_count)
 {
     write_line(token_count == 1 ? "OK_PONG" : "ERR_BAD_FORMAT");
@@ -316,6 +326,9 @@ void handle_home(std::size_t token_count)
     if (reject_if_not_ready_for_motion()) {
         return;
     }
+    if (reject_if_unreferenced()) {
+        return;
+    }
 
     const esp_err_t err = robo_6dof::motion_control::move_home();
     if (err == ESP_ERR_INVALID_ARG) {
@@ -329,6 +342,44 @@ void handle_home(std::size_t token_count)
     }
 }
 
+void handle_ref_home(std::size_t token_count)
+{
+    if (token_count != 1) {
+        write_line("ERR_BAD_FORMAT");
+        return;
+    }
+    if (reject_if_not_ready_for_motion()) {
+        return;
+    }
+
+    const esp_err_t mega_err = robo_6dof::mega_bridge::reference_home();
+    if (mega_err != ESP_OK) {
+        write_line("ERR_FAULT");
+        return;
+    }
+    if (robo_6dof::robot_state::confirm_manual_home() != ESP_OK) {
+        write_line("ERR_NOT_ARMED");
+        return;
+    }
+    write_line("OK_REF_HOME");
+    write_pos_snapshot();
+}
+
+void handle_ref_query(std::size_t token_count)
+{
+    if (token_count != 1) {
+        write_line("ERR_BAD_FORMAT");
+        return;
+    }
+    char line[48] = {};
+    std::snprintf(
+        line,
+        sizeof(line),
+        "REF,%s",
+        robo_6dof::robot_state::reference_name(robo_6dof::robot_state::reference_state()));
+    write_line(line);
+}
+
 void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_count)
 {
     if (token_count != 8) {
@@ -337,6 +388,9 @@ void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
     }
 
     if (reject_if_not_ready_for_motion()) {
+        return;
+    }
+    if (reject_if_unreferenced()) {
         return;
     }
 
@@ -480,8 +534,13 @@ void handle_line(char* line)
         handle_stop(token_count);
     } else if (std::strcmp(tokens[0], "ESTOP") == 0) {
         handle_estop(token_count);
-    } else if (std::strcmp(tokens[0], "HOME") == 0) {
+    } else if (std::strcmp(tokens[0], "HOME") == 0 ||
+               std::strcmp(tokens[0], "GO_HOME") == 0) {
         handle_home(token_count);
+    } else if (std::strcmp(tokens[0], "REF_HOME") == 0) {
+        handle_ref_home(token_count);
+    } else if (std::strcmp(tokens[0], "REF?") == 0) {
+        handle_ref_query(token_count);
     } else if (std::strcmp(tokens[0], "ANG") == 0) {
         handle_ang(tokens, token_count);
     } else if (std::strcmp(tokens[0], "GRP") == 0) {

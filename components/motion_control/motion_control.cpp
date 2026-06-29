@@ -128,6 +128,9 @@ esp_err_t init()
 
 esp_err_t move_to_targets_deg(const std::array<float, board_config::kJointCount>& targets_deg)
 {
+    if (!robot_state::can_accept_absolute_motion()) {
+        return ESP_ERR_INVALID_STATE;
+    }
     if (!targets_in_limits(targets_deg)) {
         return ESP_ERR_INVALID_ARG;
     }

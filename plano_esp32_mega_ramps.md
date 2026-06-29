@@ -37,8 +37,8 @@ Pinagem ESP32 adotada:
 
 | Função | GPIO |
 |---|---:|
-| q6 STEP | GPIO32 |
-| q6 DIR | GPIO33 |
+| q6 STEP | GPIO14 |
+| q6 DIR | GPIO13 |
 | Servo garra | GPIO4 |
 | UART2 RX do Mega | GPIO16 |
 | UART2 TX para Mega | GPIO17 |
@@ -68,6 +68,7 @@ Comandos:
 | `MGO,seq` | `MDONE,seq` | Executa movimento preparado |
 | `MSTOP,seq` | `MSTOPPED,seq` | Parada controlada |
 | `MESTOP` | `MOK_ESTOP` | Emergência imediata |
+| `MREF` | `MOK_REF_HOME` | Define a pose física atual como home, sem gerar pulsos |
 
 Erros possíveis:
 

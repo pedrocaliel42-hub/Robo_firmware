@@ -149,8 +149,8 @@ Tabela inicial:
 | M4 DIR | GPIO25 |
 | M5 STEP | GPIO26 |
 | M5 DIR | GPIO27 |
-| M6 STEP | GPIO32 |
-| M6 DIR | GPIO33 |
+| M6 STEP | GPIO14 |
+| M6 DIR | GPIO13 |
 | BT_START | GPIO34 |
 | BT_STOP / Emergência | GPIO35 |
 | FIM_DE_CURSO | GPIO2 |
