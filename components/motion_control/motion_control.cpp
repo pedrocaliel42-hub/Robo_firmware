@@ -35,6 +35,12 @@ int32_t degrees_to_steps(std::size_t axis, float degrees)
     return static_cast<int32_t>(std::lround(degrees * steps_per_degree(*joint)));
 }
 
+float steps_to_degrees(std::size_t axis, int32_t steps)
+{
+    const auto* joint = robo_6dof::board_config::joint_config(axis);
+    return joint == nullptr ? 0.0F : static_cast<float>(steps) / steps_per_degree(*joint);
+}
+
 bool targets_in_limits(const std::array<float, robo_6dof::board_config::kJointCount>& targets_deg)
 {
     return robo_6dof::board_config::validate_joint_targets_deg(
@@ -200,8 +206,17 @@ esp_err_t execute_relative_q6(float delta_deg)
 
 esp_err_t jog_relative(const std::array<float, board_config::kJointCount>& deltas_deg)
 {
-    // Jog relativo: gira os deltas informados a partir da posição atual,
-    // SEM checar limites e SEM memorizar posição absoluta.
+    const auto current = robot_state::snapshot();
+    auto reached = current.joints_deg;
+    for (std::size_t axis = 0; axis < reached.size(); ++axis) {
+        const int32_t steps = degrees_to_steps(axis, deltas_deg[axis]);
+        reached[axis] += steps_to_degrees(axis, steps);
+    }
+    if (current.reference == robot_state::ReferenceState::Referenced &&
+        !targets_in_limits(reached)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     if (robot_state::begin_motion() != ESP_OK) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -232,7 +247,7 @@ esp_err_t jog_relative(const std::array<float, board_config::kJointCount>& delta
         return q6_err;
     }
 
-    return robot_state::finish_jog();
+    return robot_state::finish_jog(reached);
 }
 
 esp_err_t move_home()

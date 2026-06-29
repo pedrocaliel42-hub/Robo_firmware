@@ -469,7 +469,7 @@ void handle_ang(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
 
 void handle_jog(const std::array<char*, kMaxTokens>& tokens, std::size_t token_count)
 {
-    // JOG,d1,d2,d3,d4,d5,d6 — deltas relativos em graus (sem limite, não memoriza).
+    // JOG,d1,d2,d3,d4,d5,d6 — incrementos relativos em graus.
     if (token_count != 7) {
         write_line("ERR_BAD_FORMAT");
         return;
@@ -488,6 +488,10 @@ void handle_jog(const std::array<char*, kMaxTokens>& tokens, std::size_t token_c
     }
 
     const esp_err_t err = robo_6dof::motion_control::jog_relative(deltas);
+    if (err == ESP_ERR_INVALID_ARG) {
+        write_line("ERR_LIMIT");
+        return;
+    }
     if (err == ESP_ERR_INVALID_STATE) {
         write_line(robo_6dof::robot_state::is_estop() ? "ERR_ESTOP" : "ERR_NOT_ARMED");
         return;

@@ -101,6 +101,11 @@ long degrees_to_steps(uint8_t axis, float degrees)
     return lround(degrees * steps_per_degree(kAxes[axis]));
 }
 
+float steps_to_degrees(uint8_t axis, long steps)
+{
+    return static_cast<float>(steps) / steps_per_degree(kAxes[axis]);
+}
+
 bool validate_target(uint8_t axis, float target_deg)
 {
     if (!isfinite(target_deg)) {
@@ -220,7 +225,7 @@ bool parse_float_token(const char* token, float* value)
     if (end == token || end == nullptr || *end != '\0' || !isfinite(parsed)) {
         return false;
     }
-
+    
     *value = parsed;
     return true;
 }
@@ -496,6 +501,7 @@ void handle_mjog(char* tokens[], uint8_t token_count)
     unsigned long abs_steps[kAxisCount] = {};
     unsigned long accumulators[kAxisCount] = {};
     unsigned long max_steps = 0;
+    float reached_deg[kAxisCount] = {};
 
     for (uint8_t axis = 0; axis < kAxisCount; ++axis) {
         float delta_deg = 0.0F;
@@ -504,6 +510,11 @@ void handle_mjog(char* tokens[], uint8_t token_count)
             return;
         }
         delta_steps[axis] = degrees_to_steps(axis, delta_deg);
+        reached_deg[axis] = g_current_deg[axis] + steps_to_degrees(axis, delta_steps[axis]);
+        if (g_referenced && !validate_target(axis, reached_deg[axis])) {
+            send_error(F("MERR_LIMIT"));
+            return;
+        }
         abs_steps[axis] = labs(delta_steps[axis]);
         if (abs_steps[axis] > max_steps) {
             max_steps = abs_steps[axis];
@@ -542,8 +553,10 @@ void handle_mjog(char* tokens[], uint8_t token_count)
         delayMicroseconds(step_interval_us(step_index, max_steps));
     }
 
-    // Jog relativo: NAO atualiza g_current_deg (nao memoriza posicao).
-    send_line(F("MJOGDONE"));
+    for (uint8_t axis = 0; axis < kAxisCount; ++axis) {
+        g_current_deg[axis] = reached_deg[axis];
+    }
+        send_line(F("MJOGDONE"));
 }
 
 void handle_line(char* line)

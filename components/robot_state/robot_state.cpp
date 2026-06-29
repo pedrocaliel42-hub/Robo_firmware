@@ -329,7 +329,7 @@ esp_err_t begin_motion()
     return ESP_OK;
 }
 
-esp_err_t finish_jog()
+esp_err_t finish_jog(const std::array<float, board_config::kJointCount>& reached_deg)
 {
     StateLock lock;
 
@@ -337,7 +337,12 @@ esp_err_t finish_jog()
         return ESP_ERR_INVALID_STATE;
     }
 
-    // Jog relativo não memoriza posição: apenas volta para Armed.
+    if (g_state.reference == ReferenceState::Referenced &&
+        !board_config::validate_joint_targets_deg(reached_deg.data(), reached_deg.size())) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    g_state.joints_deg = reached_deg;
     transition_unlocked(RobotMode::Armed);
     return ESP_OK;
 }
